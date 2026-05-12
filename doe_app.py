@@ -55,26 +55,35 @@ with st.sidebar:
 
 # ─────────────────────────────────────────────────────
 #  LOAD DATA
-# ─────────────────────────────────────────────────────
 @st.cache_data
 def load_file(file):
-    """Détecte le type de fichier par son contenu (magic bytes), pas par son nom."""
+    """Détecte le type de fichier par magic bytes et gère les doubles en-têtes Excel."""
     import io
     raw = file.read()
-    file.seek(0)  # reset pour pandas
-    # Magic bytes Excel : PK\x03\x04 (zip = xlsx) ou \xd0\xcf (xls legacy)
+
+    # Magic bytes Excel : PK\x03\x04 (xlsx) ou \xd0\xcf (xls legacy)
     if raw[:4] in (b'PK\x03\x04', b'\xd0\xcf\x11\xe0'):
-        return pd.read_excel(io.BytesIO(raw), engine="openpyxl")
-    # Sinon on tente CSV avec plusieurs séparateurs
+        # Lecture normale d'abord
+        df = pd.read_excel(io.BytesIO(raw), engine="openpyxl")
+        # Si la 1ère ligne ressemble à des codes courts (AP1, EP2...) → double header
+        # On relit en utilisant la 2ème ligne comme en-tête
+        first_cols = [str(c).strip() for c in df.columns]
+        looks_like_codes = all(len(c) <= 5 and c.replace("_","").isalnum() for c in first_cols)
+        if looks_like_codes:
+            df = pd.read_excel(io.BytesIO(raw), engine="openpyxl", header=1)
+        return df
+
+    # CSV : essai avec plusieurs séparateurs
     for sep in [",", ";", "\t"]:
         try:
-            df = pd.read_csv(io.BytesIO(raw), sep=sep)
-            if df.shape[1] > 1:
-                return df
+            df_try = pd.read_csv(io.BytesIO(raw), sep=sep)
+            if df_try.shape[1] > 1:
+                return df_try
         except Exception:
             continue
-    # Dernier recours : CSV basique
     return pd.read_csv(io.BytesIO(raw))
+
+# ─────────────────────────────────────────────────────
 
 @st.cache_data
 def load_default():
