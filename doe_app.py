@@ -389,7 +389,7 @@ with tabs[4]:
 
         st.markdown("#### Tableau ANOVA (Type II)")
         st.dataframe(at.style
-            .applymap(lambda v: "background-color:#d1fae5;font-weight:bold" if v=="✅ Oui" else "",
+            .map(lambda v: "background-color:#d1fae5;font-weight:bold" if v=="✅ Oui" else "",
                       subset=["Significatif"])
             .format({"SS":"{:.4f}","df":"{:.0f}","F":"{:.3f}","p-value":"{:.4f}"}),
             use_container_width=True)
